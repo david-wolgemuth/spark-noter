@@ -1,0 +1,8 @@
+<h1>{{ title }}</h1>
+<h2>by {{ author }}</h2>
+{% for chapter in chapters %}
+    <h3>{{ chapter.title }} {{ chapter.reading_difficulty }}</h3>
+    <p>{{ chapter.summary }}</p>
+    <p>Characters: {{ chapter.characters }}</p>
+    <p>Events: {{ chapter.events }}</p>
+{% endfor %}
