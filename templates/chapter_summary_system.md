@@ -16,7 +16,14 @@ output as valid json Between ```json{...}```
 
 
 ```json
-{{ json_format }}
+{
+  "title": String,
+  "summary": String,
+  "events": Array<String>,
+  "reading_difficulty": String,
+  "characters": Array<String>,
+  "locations": Array<String>,
+}
 ```
 
 ## Examples

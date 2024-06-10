@@ -30,7 +30,10 @@ def chat_completion(
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
-        ]
+        ],
+        # response_format={ "type": "json_object" },  # (only supported for gpt-4o)
+        seed=24,
+        temperature=0.2,
     )
     return completion.choices[0].message.content
 
@@ -60,7 +63,12 @@ EXAMPLES = [
     "March Hare",
     "Hatter",
     "Dormouse"
-  ]
+  ],
+  "locations": [
+        "A tree",
+        "A long hall",
+        "A beautiful garden",
+  ],
 },
 {
   "title": "Chapter II",
@@ -79,7 +87,10 @@ EXAMPLES = [
     "Dorian Gray",
     "Basil Hallward",
     "Lord Henry Wotton"
-  ]
+  ],
+    "locations": [
+        "Basil's studio",
+    ],
 },
 {
   "title": "Chapter VIII: The Deadly Poppy Field",
@@ -103,7 +114,12 @@ EXAMPLES = [
     "Cowardly Lion",
     "Toto",
     "Stork"
-  ]
+  ],
+  "locations": [
+        "Emerald City",
+        "Broad river",
+        "Field of deadly poppies",
+  ],
 },
 {
   "title": "Chapter 13: Fixing the Nets",
@@ -129,12 +145,17 @@ EXAMPLES = [
     "Stapleton",
     "Mrs. Laura Lyons",
     "Inspector Lestrade"
-  ]
+  ],
+    "locations": [
+            "Baskerville Hall",
+            "Stapleton's house",
+            "Mrs. Laura Lyons' residence",
+    ],
 }
 ]
 
+
 def generate_chapter_summary(
-    book_metadata: dict,
     chapter_body: str,
 ):
     """
@@ -143,58 +164,100 @@ def generate_chapter_summary(
     chapter_metadata = {
     }
 
-    for field, json_format, examples in [
-        [
-            "title",
-            '{"title": String}',
-            [{"title": e["title"]} for e in EXAMPLES]
-        ],
-        [
-            "summary",
-            '{"summary": String}',
-            [{"summary": e["summary"]} for e in EXAMPLES]
-        ],
-        [
-            "events",
-            '{"events": Array<String>}',
-            [{"events": e["events"]} for e in EXAMPLES]
-        ],
-        [
-            "reading_difficulty",
-            '{"reading_difficulty": String}',
-            [{"reading_difficulty": e["reading_difficulty"]} for e in EXAMPLES]
-        ],
-        [
-            "characters",
-            '{"characters": Array<String>}',
-            [{"characters": e["characters"]} for e in EXAMPLES]
-        ],
-    ]:
-        retries = 3
-        for i in range(retries):
-            try:
-                chat_completion_response = chat_completion(
-                    system_prompt=templates.get_template("chapter_summary_system.md").render({
-                        "field": field,
-                        "json_format": json_format,
-                        "example_1": json.dumps(examples[0]),
-                        "example_2": json.dumps(examples[1]),
-                        "example_3": json.dumps(examples[2]),
-                        "example_4": json.dumps(examples[3]),
-                    }),
-                    user_prompt=templates.get_template("chapter_summary_user.md").render({
-                        "chapter_body": chapter_body,
-                    }),
-                )
-                json_str = chat_completion_response.split("```json")[1].split("```")[0]
-                data = json.loads(json_str)
-                chapter_metadata.update(data)
-                break
-            except Exception as e:
-                print(e)
-                print("retrying...")
+    retries = 3
+    for i in range(retries):
+        try:
+            system_prompt = templates.get_template("chapter_summary_system.md").render({
+                "example_1": json.dumps(EXAMPLES[0]),
+                "example_2": json.dumps(EXAMPLES[1]),
+                "example_3": json.dumps(EXAMPLES[2]),
+                "example_4": json.dumps(EXAMPLES[3]),
+            })
+            print(system_prompt)
+
+            user_prompt = templates.get_template("chapter_summary_user.md").render({
+                "chapter_body": chapter_body,
+            })
+            print(user_prompt)
+            chat_completion_response = chat_completion(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+            print(chat_completion_response)
+            # json_str = chat_completion_response.split("```json")[1].split("```")[0]
+            data = json.loads(chat_completion_response)
+            chapter_metadata.update(data)
+            break
+        except Exception as e:
+            print(e)
+            print("retrying...")
 
     return chapter_metadata
+
+
+# def generate_chapter_summary_old(
+#     book_metadata: dict,
+#     chapter_body: str,
+# ):
+#     """
+#     generate summary for a chapter
+#     """
+#     chapter_metadata = {
+#     }
+
+#     for field, json_format, examples in [
+#         [
+#             "title",
+#             '{"title": String}',
+#             [{"title": e["title"]} for e in EXAMPLES]
+#         ],
+#         [
+#             "summary",
+#             '{"summary": String}',
+#             [{"summary": e["summary"]} for e in EXAMPLES]
+#         ],
+#         [
+#             "events",
+#             '{"events": Array<String>}',
+#             [{"events": e["events"]} for e in EXAMPLES]
+#         ],
+#         [
+#             "reading_difficulty",
+#             '{"reading_difficulty": String}',
+#             [{"reading_difficulty": e["reading_difficulty"]} for e in EXAMPLES]
+#         ],
+#         [
+#             "characters",
+#             '{"characters": Array<String>}',
+#             [{"characters": e["characters"]} for e in EXAMPLES]
+#         ],
+#     ]:
+#         retries = 3
+#         for i in range(retries):
+#             try:
+#                 chat_completion_response = chat_completion(
+#                     system_prompt=templates.get_template("chapter_summary_system.md").render({
+#                         "field": field,
+#                         "json_format": json_format,
+#                         "example_1": json.dumps(examples[0]),
+#                         "example_2": json.dumps(examples[1]),
+#                         "example_3": json.dumps(examples[2]),
+#                         "example_4": json.dumps(examples[3]),
+#                     }),
+#                     user_prompt=templates.get_template("chapter_summary_user.md").render({
+#                         "chapter_body": chapter_body,
+#                     }),
+#                 )
+#                 print(chat_completion_response)
+#                 json_str = chat_completion_response.split("```json")[1].split("```")[0]
+#                 data = json.loads(json_str)
+#                 chapter_metadata.update(data)
+#                 break
+#             except Exception as e:
+#                 print(e)
+#                 print("retrying...")
+
+#     return chapter_metadata
 
 
 def generate_book_metadata(book_html: str) -> dict:
@@ -234,12 +297,11 @@ def generate_book_summaries(file):
         raise Exception("No chapters found")
 
     chapters_summary = []
-    retries = 3
     for chapter in chapters_html:
         chapters_summary.append(
             generate_chapter_summary(
-                book_metadata=book_metadata,
-                chapter_body=str(chapter),
+                # book_metadata=book_metadata,
+                chapter_body=chapter.text,
             )
         )
         print("generated chapter summary", chapters_summary[-1])
@@ -250,34 +312,62 @@ def generate_book_summaries(file):
     }
 
 
-def write_to_file(file, book_metadata: dict):
-    """
-    write book metadata and summaries to file
-    """
-    file.write(templates.get_template("book_summary.html").render(book_metadata))
-
-
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "input",
+        "-i",
+        "--input",
         type=argparse.FileType("r"),
         help="path to the book",
     )
 
     parser.add_argument(
-        "output",
+        "-o",
+        "--output",
         type=argparse.FileType("w"),
-        help="path to the book",
+        help="path to the output file",
+    )
+
+    parser.add_argument(
+        "-c",
+        "--chapter",
+        type=int,
+        help="chapter number",
     )
 
     args = parser.parse_args()
 
-    book_metadata = generate_book_summaries(args.input)
+    if args.chapter:
+        book_html = args.input.read()
+        soup = bs4.BeautifulSoup(book_html, "html.parser")
 
-    print(book_metadata)
+        chapters_html = soup.find_all("div", class_="chapter")
+        if not chapters_html:
+            raise Exception("No chapters found")
 
-    write_to_file(args.output, book_metadata)
+        chapter = chapters_html[args.chapter + 1]  # 1-indexed
+
+        chapter_metadata = generate_chapter_summary(
+            chapter_body=chapter.text,
+        )
+
+        from pprint import pprint
+        pprint(chapter_metadata)
+
+        html = templates.get_template("chapter_summary.html").render(chapter=chapter_metadata)
+
+        args.output.write(html)
+
+    else:
+        book_metadata = generate_book_summaries(args.input)
+
+        print(book_metadata)
+
+        html = templates.get_template("book_summary.html").render(
+            book_metadata,
+        )
+
+        args.output.write(html)
